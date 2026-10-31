@@ -26,4 +26,5 @@ if ($LASTEXITCODE -ne 0) { throw 'Build fejlede.' }
 Copy-Item tools/LICENSE* artifacts/win-x64/ -ErrorAction SilentlyContinue
 Copy-Item THIRD-PARTY-NOTICES.md artifacts/win-x64/
 Copy-Item tools/checksums.sha256 artifacts/win-x64/
+Copy-Item licenses/NAudio.txt artifacts/win-x64/NAudio-LICENSE.txt
 Write-Host 'Færdig: artifacts/win-x64/Cast.exe'

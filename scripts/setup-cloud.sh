@@ -28,7 +28,14 @@ with zipfile.ZipFile(archive) as z:
             (root/pathlib.PurePosixPath(name).name).write_bytes(z.read(name))
 PY
 fi
-dotnet run --project tests/Cast.ProtocolTests -c Release
+encoder_options="$(mktemp)"
+trap 'rm -f "$encoder_options"' EXIT
+dotnet run --project tests/Cast.ProtocolTests -c Release -- --write-encoder-options "$encoder_options"
+if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
+  python3 scripts/test-encoder.py "$encoder_options"
+fi
 dotnet publish src/Cast/Cast.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o artifacts/win-x64
 cp THIRD-PARTY-NOTICES.md tools/checksums.sha256 artifacts/win-x64/
 find tools -maxdepth 1 -name 'LICENSE*' -exec cp {} artifacts/win-x64/ \;
+
+cp licenses/NAudio.txt artifacts/win-x64/NAudio-LICENSE.txt

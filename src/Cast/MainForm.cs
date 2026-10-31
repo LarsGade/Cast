@@ -6,6 +6,8 @@ internal sealed class MainForm : Form
     private readonly Button search = new() { Text = "Find enheder", AutoSize = true };
     private readonly Button start = new() { Text = "Spejl skærmen", AutoSize = true };
     private readonly Button stop = new() { Text = "Stop", AutoSize = true, Enabled = false };
+    private readonly CheckBox sound = new() { Text = "Del systemlyd", Checked = true, AutoSize = true };
+    private readonly CheckBox faster = new() { Text = "Hurtigere billede (30 fps)", Checked = true, AutoSize = true };
     private readonly Label status = new() { AutoSize = true, MaximumSize = new Size(590, 0) };
     private readonly CancellationTokenSource lifetime = new();
     private CastConnection? connection;
@@ -30,7 +32,7 @@ internal sealed class MainForm : Form
         layout.Controls.Add(new Label { Text = "Begge enheder skal være på samme netværk. Ingen Chrome nødvendig.", AutoSize = true, MaximumSize = new Size(580, 0), Margin = new Padding(0, 12, 0, 12) });
         layout.Controls.Add(devices);
         var buttons = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill };
-        buttons.Controls.AddRange([search, start, stop]); layout.Controls.Add(buttons);
+        buttons.Controls.AddRange([search, start, stop, sound, faster]); layout.Controls.Add(buttons);
         layout.Controls.Add(address);
         layout.Controls.Add(status);
         Controls.Add(layout);
@@ -48,12 +50,12 @@ internal sealed class MainForm : Form
     }
     private async Task RunAsync(Func<Task> action)
     {
-        search.Enabled = start.Enabled = stop.Enabled = false;
+        search.Enabled = start.Enabled = stop.Enabled = sound.Enabled = faster.Enabled = false;
         try { await action(); }
         catch (Exception ex) { if (!closing) status.Text = ex is OperationCanceledException ? "Handlingen tog for lang tid." : ex.Message; }
         finally
         {
-            if (!closing) { search.Enabled = start.Enabled = screen is null; stop.Enabled = screen is not null; }
+            if (!closing) { search.Enabled = start.Enabled = sound.Enabled = faster.Enabled = screen is null; stop.Enabled = screen is not null; }
         }
     }
     private async Task FindAsync()
@@ -82,11 +84,11 @@ internal sealed class MainForm : Form
         try
         {
             status.Text = "Starter optagelse og forbinder til Chromecast …";
-            string url = await screen.StartAsync(ip, lifetime.Token);
+            string url = await screen.StartAsync(ip, lifetime.Token, sound.Checked, faster.Checked);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
             timeout.CancelAfter(TimeSpan.FromSeconds(40));
             await connection.StartAsync(ip, url, timeout.Token);
-            status.Text = "Chromecast afspiller skærmen. Hele skrivebordet deles uden lyd; nogle sekunders forsinkelse er normalt.";
+            status.Text = sound.Checked ? "Deler skærm og systemlyd. Chromecast buffer stadig billedet; markøren er ikke i realtid." : "Deler skærm uden lyd. Chromecast buffer stadig billedet; markøren er ikke i realtid.";
         }
         catch { await CleanupAsync(); throw; }
     }

@@ -5,5 +5,5 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup><Compile Include="../../src/Cast/CastConnection.cs" Link="CastConnection.cs" /><Compile Include="../../src/Cast/Discovery.cs" Link="Discovery.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../../src/Cast/CastConnection.cs" Link="CastConnection.cs" /><Compile Include="../../src/Cast/Discovery.cs" Link="Discovery.cs" /><Compile Include="../../src/Cast/StreamSettings.cs" Link="StreamSettings.cs" /><Compile Include="../../src/Cast/AudioPump.cs" Link="AudioPump.cs" /></ItemGroup>
 </Project>

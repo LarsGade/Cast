@@ -9,6 +9,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
     <EmbeddedResource Include="../../tools/ffmpeg.exe" LogicalName="Cast.ffmpeg.exe" Condition="Exists('../../tools/ffmpeg.exe')" />
   </ItemGroup>
 </Project>

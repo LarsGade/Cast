@@ -77,3 +77,24 @@ try
 }
 finally { listener.Stop(); }
 Console.WriteLine($"Passed {checks} checks including simulated Cast TLS session.");
+
+var audioOptions = StreamSettings.OutputArguments(true, true);
+Check(audioOptions.Contains("aac") && audioOptions.Contains("1:a:0") && !audioOptions.Contains("-an"), "System audio must be mapped and AAC-encoded");
+Check(StreamSettings.OutputArguments(false, true).Contains("-an"), "Audio-off must remain supported");
+Check(audioOptions[Array.IndexOf(audioOptions, "-r") + 1] == "30", "Faster capture must encode at 30 fps");
+Check(audioOptions[Array.IndexOf(audioOptions, "-hls_list_size") + 1] == "3", "Faster profile must shorten the live window");
+string playlist = "#EXTM3U\n#EXT-X-TARGETDURATION:1\n";
+string prepared = StreamSettings.PreparePlaylist(playlist, true);
+Check(prepared.Contains("#EXT-X-START:TIME-OFFSET=-1.5,PRECISE=YES"), "Faster playlist must request playback near the live edge");
+Check(StreamSettings.PreparePlaylist(prepared, true) == prepared && StreamSettings.PreparePlaylist(playlist, false) == playlist, "Playlist hint must be idempotent and optional");
+if (args.Length == 2 && args[0] == "--write-encoder-options")
+    File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(audioOptions));
+Console.WriteLine($"Passed {checks} checks including audio mapping and live playlist settings.");
+
+using var silence = new MemoryStream();
+using var stopAudio = new CancellationTokenSource(TimeSpan.FromMilliseconds(80));
+try { await AudioPump.RunAsync(silence, 48000, 8, bytes => Array.Clear(bytes), () => { }, stopAudio.Token); }
+catch (OperationCanceledException) when (stopAudio.IsCancellationRequested) { }
+Check(silence.Length >= 3840 && silence.ToArray().All(b => b == 0), "Idle playback device must keep supplying silence so video can start");
+Check(silence.Length % (480 * 8) == 0, "Audio writes must preserve complete sample frames");
+Console.WriteLine($"Passed {checks} checks including clocked silence and cancellation.");
