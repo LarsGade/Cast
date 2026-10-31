@@ -119,6 +119,7 @@ try
     {
         logPath = log.Path;
         log.Write("Actual input failure"); log.Write("Error opening input files: Invalid argument");
+        Check(EncoderLog.Read(logPath).Contains("Actual input failure"), "Active encoder log must be readable while the encoder is still writing");
         Check(log.Details.Contains("Actual input failure"), "Root cause must survive the final generic FFmpeg error");
     }
     Check(File.ReadAllText(logPath).Contains("Actual input failure"), "Diagnostic log must survive process cleanup");

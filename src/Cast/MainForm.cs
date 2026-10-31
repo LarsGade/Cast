@@ -82,7 +82,7 @@ internal sealed class MainForm : Form
         void Issue(string message)
         {
             if (closing || !IsHandleCreated || !ReferenceEquals(screen, session)) return;
-            try { BeginInvoke((Action)(() => { if (!closing && ReferenceEquals(screen, session)) status.Text = message; })); }
+            try { BeginInvoke((Action)(() => { if (!closing && ReferenceEquals(screen, session)) { status.Text = message; showLog.Enabled = File.Exists(session.DiagnosticLogPath); } })); }
             catch (InvalidOperationException) { }
         }
         screen.Issue += Issue; connection.Issue += Issue;
@@ -90,6 +90,7 @@ internal sealed class MainForm : Form
         {
             status.Text = "Starter optagelse og forbinder til Chromecast …";
             string url = await screen.StartAsync(ip, lifetime.Token, sound.Checked, faster.Checked);
+            showLog.Enabled = File.Exists(screen.DiagnosticLogPath);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
             timeout.CancelAfter(TimeSpan.FromSeconds(40));
             await connection.StartAsync(ip, url, timeout.Token);
@@ -104,7 +105,7 @@ internal sealed class MainForm : Form
         try
         {
             using var dialog = new Form { Text = "Cast — fejllog", Size = new Size(850, 550), StartPosition = FormStartPosition.CenterParent };
-            var text = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, WordWrap = false, Dock = DockStyle.Fill, Font = new Font("Consolas", 10), Text = File.ReadAllText(path) };
+            var text = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, WordWrap = false, Dock = DockStyle.Fill, Font = new Font("Consolas", 10), Text = EncoderLog.Read(path) };
             var copy = new Button { Text = "Kopiér log", Dock = DockStyle.Bottom, Height = 40 };
             copy.Click += (_, _) => { try { Clipboard.SetText(text.Text); } catch (System.Runtime.InteropServices.ExternalException) { MessageBox.Show("Udklipsholderen er optaget. Prøv igen."); } };
             dialog.Controls.Add(text); dialog.Controls.Add(copy); dialog.ShowDialog(this);

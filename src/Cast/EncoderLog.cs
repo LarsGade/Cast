@@ -23,6 +23,11 @@ internal sealed class EncoderLog : IDisposable
             if (size < 128 * 1024) { writer.WriteLine(line); size += line.Length; }
         }
     }
+    public static string Read(string path)
+    {
+        using var reader = new StreamReader(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
+        return reader.ReadToEnd();
+    }
     public string Details { get { lock (sync) return string.Join(Environment.NewLine, recent); } }
     public void Dispose()
     {

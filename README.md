@@ -23,6 +23,12 @@ Samme Wi-Fi skal tillade trafik mellem enhederne: gæstenetværk, klientisolerin
 
 Videoen leveres over lokal HTTP med en tilfældig URL pr. session; brug et betroet privat netværk. Cast-enheder anvender selvsignerede TLS-certifikater. Appen understøtter ikke Googles særskilte device-auth-verifikation. Appen kan erstatte eksisterende afspilning på den valgte Chromecast.
 
+## Hvis opstart fejler
+
+Version 0.2.1 lader FFmpeg bestemme skrivebordets fysiske skærmområde automatisk. Det undgår at sende skærmkoordinater fra appens DPI-kontekst til en separat proces med en anden skalering.
+
+Hvis appen stadig melder, at videokoderen ikke kan starte: klik **Vis fejllog**, klik **Kopiér log**, og medsend teksten, når du rapporterer fejlen. Loggen indeholder den konkrete FFmpeg-fejl frem for kun den sidste generelle linje. Den gemmes under `%LOCALAPPDATA%\Cast\Logs` og indeholder proces-/inputoplysninger og fejltekst; skærmbillede og lyd optages ikke i loggen. Versionsnummeret står i vinduets titel.
+
 ## Byg EXE
 
 Installer [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0), åbn PowerShell i projektmappen og kør:

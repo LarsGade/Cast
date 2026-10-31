@@ -27,7 +27,7 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path windows-encoder-test.log) {
-            $lines = @(Get-Content windows-encoder-test.log | Where-Object { $_ -match '(?i)error|invalid|exception|failed|not found|checksum|capture area' })
+            $lines = @(Get-Content windows-encoder-test.log | Where-Object { $_ -match '(?i)option|cannot|out of range|too small|too large|unable|error|invalid|exception|failed|not found|checksum|capture area' })
             $diagnosticLine = ($lines -join ' | ') -replace '[\r\n]', ' '
             if ($diagnosticLine.Length -gt 220) { $diagnosticLine = $diagnosticLine.Substring(0, 220) }
             "diagnostic=$diagnosticLine" | Add-Content $env:GITHUB_OUTPUT
