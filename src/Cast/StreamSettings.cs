@@ -6,14 +6,14 @@ internal static class StreamSettings
     public static string[] AudioInputArguments(string format, int sampleRate, int channels)
     {
         if (sampleRate <= 0 || channels <= 0) throw new ArgumentOutOfRangeException(nameof(sampleRate), "Lydformatet mangler gyldig samplerate/kanalantal.");
-        return ["-thread_queue_size", "64", "-probesize", "32", "-analyzeduration", "0", "-f", format,
+        return ["-probesize", "32", "-analyzeduration", "0", "-f", format,
             "-ar", sampleRate.ToString(CultureInfo.InvariantCulture), "-ac", channels.ToString(CultureInfo.InvariantCulture), "-i", "pipe:0"];
     }
 
     // Let gdigrab determine the physical desktop in its own DPI context.
     // WinForms' virtual bounds can differ on mixed-DPI/multi-monitor systems.
     public static string[] ScreenInputArguments(bool faster) =>
-        ["-thread_queue_size", "32", "-f", "gdigrab", "-framerate", faster ? "30" : "20", "-draw_mouse", "1", "-i", "desktop"];
+        ["-f", "gdigrab", "-framerate", faster ? "30" : "20", "-draw_mouse", "1", "-i", "desktop"];
 
     public static string[] OutputArguments(bool includeAudio, bool faster)
     {

@@ -130,3 +130,6 @@ Console.WriteLine($"Passed {checks} checks including retained encoder diagnostic
 var desktopInput = StreamSettings.ScreenInputArguments(true);
 Check(!desktopInput.Contains("-offset_x") && !desktopInput.Contains("-offset_y") && !desktopInput.Contains("-video_size") && desktopInput[^1] == "desktop", "Desktop capture must use gdigrab's own DPI context instead of a WinForms crop rectangle");
 Console.WriteLine($"Passed {checks} checks including automatic desktop bounds.");
+
+Check(!StreamSettings.AudioInputArguments("f32le", 48000, 2).Contains("-thread_queue_size") && !StreamSettings.ScreenInputArguments(true).Contains("-thread_queue_size"), "Modern FFmpeg's muxer-only thread_queue_size option must never be passed to inputs");
+Console.WriteLine($"Passed {checks} checks including modern FFmpeg input compatibility.");
