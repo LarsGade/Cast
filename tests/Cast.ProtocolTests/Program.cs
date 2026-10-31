@@ -125,3 +125,15 @@ try
 }
 finally { Directory.Delete(logDirectory, true); }
 Console.WriteLine($"Passed {checks} checks including retained encoder diagnostics.");
+
+var originalCulture = System.Globalization.CultureInfo.CurrentCulture;
+try
+{
+    var culture = (System.Globalization.CultureInfo)System.Globalization.CultureInfo.GetCultureInfo("da-DK").Clone();
+    culture.NumberFormat.NegativeSign = "−";
+    System.Globalization.CultureInfo.CurrentCulture = culture;
+    var screenArguments = StreamSettings.ScreenInputArguments(-1920, -1080, 3840, 2160, true);
+    Check(screenArguments[Array.IndexOf(screenArguments, "-offset_x") + 1] == "-1920" && screenArguments[Array.IndexOf(screenArguments, "-offset_y") + 1] == "-1080", "Monitor offsets must use ASCII minus regardless of Windows regional settings");
+}
+finally { System.Globalization.CultureInfo.CurrentCulture = originalCulture; }
+Console.WriteLine($"Passed {checks} checks including regional monitor coordinate formatting.");

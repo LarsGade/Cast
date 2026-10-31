@@ -9,6 +9,8 @@ permissions:
   contents: read
 jobs:
   windows-encoder-test:
+    outputs:
+      diagnostic: ${{ steps.failure-details.outputs.diagnostic }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,10 +22,15 @@ jobs:
         run: |
           ./scripts/test-windows-encoder.ps1 *>&1 | Tee-Object windows-encoder-test.log
       - name: Expose encoder failure details
+        id: failure-details
         if: failure()
         shell: pwsh
         run: |
           if (Test-Path windows-encoder-test.log) {
+            $lines = @(Get-Content windows-encoder-test.log | Where-Object { $_ -match '(?i)error|invalid|exception|failed|not found|checksum|capture area' })
+            $diagnosticLine = ($lines -join ' | ') -replace '[\r\n]', ' '
+            if ($diagnosticLine.Length -gt 220) { $diagnosticLine = $diagnosticLine.Substring(0, 220) }
+            "diagnostic=$diagnosticLine" | Add-Content $env:GITHUB_OUTPUT
             Add-Content $env:GITHUB_STEP_SUMMARY '### Windows encoder failure'
             Add-Content $env:GITHUB_STEP_SUMMARY '```text'
             Get-Content windows-encoder-test.log -Tail 100 | Add-Content $env:GITHUB_STEP_SUMMARY
@@ -34,6 +41,13 @@ jobs:
         with:
           name: Windows-encoder-diagnostics
           path: windows-encoder-test.log
+  windows-result:
+    needs: windows-encoder-test
+    if: failure()
+    name: "Windows error — ${{ needs.windows-encoder-test.outputs.diagnostic }}"
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'See the Windows encoder diagnostic artifact for details.'
   build:
     needs: windows-encoder-test
     runs-on: ubuntu-latest
