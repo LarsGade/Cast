@@ -29,7 +29,7 @@ Installer [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0), åbn P
 
 Scriptet henter FFmpeg fra BtbN's officielle GitHub-releases, verificerer SHA-256 mod udgiverens manifest, kører protokoltests og bygger **`artifacts/win-x64/Cast.exe`** med indbygget .NET-runtime og FFmpeg. Det kræver internet under første build. Windows-brugeren skal hverken installere .NET, FFmpeg eller Chrome. EXE-filen er ikke kodesigneret.
 
-GitHub Actions kører samme script ved push/PR og manuelt. En vellykket kørsel udgiver artifact **Cast-windows-x64**. Ved push af et versionsmærke (`v*`) publicerer workflowet også en GitHub-testrelease med EXE og ZIP.
+GitHub Actions bruger den tilsvarende Linux-krydsbygning i `scripts/setup-cloud.sh` ved push/PR og manuelt. En vellykket kørsel udgiver artifact **Cast-windows-x64**. Ved push af et versionsmærke (`v*`) publicerer workflowet også en GitHub-testrelease med EXE og ZIP.
 
 ## Udvikling og tests
 

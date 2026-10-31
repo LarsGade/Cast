@@ -9,7 +9,7 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
@@ -18,8 +18,10 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Test and publish
-        shell: pwsh
-        run: ./build.ps1
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/setup-cloud.sh 2>&1 | tee build.log
       - uses: actions/upload-artifact@v4
         with:
           name: Cast-windows-x64
@@ -27,14 +29,26 @@ jobs:
           if-no-files-found: error
       - name: Package Windows download
         if: startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
-        run: Compress-Archive -Path artifacts/win-x64/* -DestinationPath artifacts/Cast-windows-x64.zip
+        shell: bash
+        run: |
+          cd artifacts/win-x64
+          zip ../Cast-windows-x64.zip *
       - name: Publish test release
         if: startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$env:RELEASE_TAG" artifacts/win-x64/Cast.exe artifacts/Cast-windows-x64.zip --verify-tag --title "Cast $env:RELEASE_TAG" --notes-file RELEASE_NOTES.md --prerelease
-          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
+          gh release create "$RELEASE_TAG" artifacts/win-x64/Cast.exe artifacts/Cast-windows-x64.zip --verify-tag --title "Cast $RELEASE_TAG" --notes-file RELEASE_NOTES.md --prerelease
+
+      - name: Build failure details
+        if: failure()
+        shell: bash
+        run: |
+          if [ -f build.log ]; then
+            echo '### Build failure' >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -80 build.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi

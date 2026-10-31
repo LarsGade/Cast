@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd /workspace/Cast
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
-if [ ! -x /workspace/.dotnet/dotnet ]; then
+if ! command -v dotnet >/dev/null 2>&1 && [ ! -x /workspace/.dotnet/dotnet ]; then
   curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/cast-dotnet-install.sh
   bash /tmp/cast-dotnet-install.sh --version 8.0.419 --install-dir /workspace/.dotnet --no-path
 fi
