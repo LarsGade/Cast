@@ -1,0 +1,100 @@
+namespace Cast;
+internal sealed class MainForm : Form
+{
+    private readonly ListBox devices = new() { Dock = DockStyle.Fill };
+    private readonly TextBox address = new() { Width = 180, PlaceholderText = "Chromecast-IP (valgfrit)" };
+    private readonly Button search = new() { Text = "Find enheder", AutoSize = true };
+    private readonly Button start = new() { Text = "Spejl skærmen", AutoSize = true };
+    private readonly Button stop = new() { Text = "Stop", AutoSize = true, Enabled = false };
+    private readonly Label status = new() { AutoSize = true, MaximumSize = new Size(590, 0) };
+    private readonly CancellationTokenSource lifetime = new();
+    private CastConnection? connection;
+    private ScreenStream? screen;
+    private Task? operation;
+    private bool closing;
+    public MainForm()
+    {
+        Text = "Cast — skærmspejling";
+        ClientSize = new Size(650, 470);
+        MinimumSize = new Size(600, 440);
+        Font = new Font("Segoe UI", 11);
+        StartPosition = FormStartPosition.CenterScreen;
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(24), ColumnCount = 1, RowCount = 6 };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.Controls.Add(new Label { Text = "Din PC-skærm på Chromecast", Font = new Font(Font, FontStyle.Bold), AutoSize = true });
+        layout.Controls.Add(new Label { Text = "Begge enheder skal være på samme netværk. Ingen Chrome nødvendig.", AutoSize = true, MaximumSize = new Size(580, 0), Margin = new Padding(0, 12, 0, 12) });
+        layout.Controls.Add(devices);
+        var buttons = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill };
+        buttons.Controls.AddRange([search, start, stop]); layout.Controls.Add(buttons);
+        layout.Controls.Add(address);
+        layout.Controls.Add(status);
+        Controls.Add(layout);
+        search.Click += (_, _) => operation = RunAsync(FindAsync);
+        start.Click += (_, _) => operation = RunAsync(StartAsync);
+        stop.Click += (_, _) => operation = RunAsync(StopAsync);
+        Shown += (_, _) => operation = RunAsync(FindAsync);
+        FormClosing += async (_, e) =>
+        {
+            if (closing) return;
+            e.Cancel = true; closing = true; Enabled = false; lifetime.Cancel();
+            if (operation is not null) await operation;
+            await CleanupAsync(); Close();
+        };
+    }
+    private async Task RunAsync(Func<Task> action)
+    {
+        search.Enabled = start.Enabled = stop.Enabled = false;
+        try { await action(); }
+        catch (Exception ex) { if (!closing) status.Text = ex is OperationCanceledException ? "Handlingen tog for lang tid." : ex.Message; }
+        finally
+        {
+            if (!closing) { search.Enabled = start.Enabled = screen is null; stop.Enabled = screen is not null; }
+        }
+    }
+    private async Task FindAsync()
+    {
+        status.Text = "Søger på lokalnetværket …";
+        var found = await Discovery.FindAsync(lifetime.Token);
+        devices.Items.Clear();
+        foreach (var receiver in found) devices.Items.Add(receiver);
+        if (devices.Items.Count > 0) devices.SelectedIndex = 0;
+        status.Text = found.Count > 0 ? "Vælg en enhed og klik Spejl skærmen." : "Ingen enheder fundet. Kontrollér Wi-Fi/firewall, eller indtast enhedens IPv4-adresse fra Google Home.";
+    }
+    private async Task StartAsync()
+    {
+        string ip = address.Text.Trim();
+        if (ip.Length == 0 && devices.SelectedItem is Receiver receiver) ip = receiver.Address;
+        if (!System.Net.IPAddress.TryParse(ip, out var parsed) || parsed.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+            throw new InvalidOperationException("Vælg en enhed, eller angiv dens IPv4-adresse.");
+        screen = new ScreenStream(); connection = new CastConnection();
+        void Issue(string message)
+        {
+            if (closing || !IsHandleCreated) return;
+            try { BeginInvoke((Action)(() => { if (!closing) status.Text = message; })); }
+            catch (InvalidOperationException) { }
+        }
+        screen.Issue += Issue; connection.Issue += Issue;
+        try
+        {
+            status.Text = "Starter optagelse og forbinder til Chromecast …";
+            string url = await screen.StartAsync(ip, lifetime.Token);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+            timeout.CancelAfter(TimeSpan.FromSeconds(40));
+            await connection.StartAsync(ip, url, timeout.Token);
+            status.Text = "Chromecast afspiller skærmen. Hele skrivebordet deles uden lyd; nogle sekunders forsinkelse er normalt.";
+        }
+        catch { await CleanupAsync(); throw; }
+    }
+    private async Task StopAsync() { await CleanupAsync(); status.Text = "Skærmdelingen er stoppet."; }
+    private async Task CleanupAsync()
+    {
+        // Stop capture and HTTP first, even if the receiver has gone offline.
+        if (screen is not null) { await screen.DisposeAsync(); screen = null; }
+        if (connection is not null) { await connection.DisposeAsync(); connection = null; }
+    }
+}
