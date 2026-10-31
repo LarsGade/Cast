@@ -1,9 +1,9 @@
 using System.Text;
 using Cast;
 object EncoderConfig() => new { output = StreamSettings.OutputArguments(true, true), audioInput = StreamSettings.AudioInputArguments("f32le", 48000, 2) };
-if (args.Length == 6 && args[0] == "--screen-config-only")
+if (args.Length == 2 && args[0] == "--screen-config-only")
 {
-    var options = StreamSettings.ScreenInputArguments(int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), int.Parse(args[5]), true);
+    var options = StreamSettings.ScreenInputArguments(true);
     File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(options));
     return;
 }
@@ -126,14 +126,6 @@ try
 finally { Directory.Delete(logDirectory, true); }
 Console.WriteLine($"Passed {checks} checks including retained encoder diagnostics.");
 
-var originalCulture = System.Globalization.CultureInfo.CurrentCulture;
-try
-{
-    var culture = (System.Globalization.CultureInfo)System.Globalization.CultureInfo.GetCultureInfo("da-DK").Clone();
-    culture.NumberFormat.NegativeSign = "−";
-    System.Globalization.CultureInfo.CurrentCulture = culture;
-    var screenArguments = StreamSettings.ScreenInputArguments(-1920, -1080, 3840, 2160, true);
-    Check(screenArguments[Array.IndexOf(screenArguments, "-offset_x") + 1] == "-1920" && screenArguments[Array.IndexOf(screenArguments, "-offset_y") + 1] == "-1080", "Monitor offsets must use ASCII minus regardless of Windows regional settings");
-}
-finally { System.Globalization.CultureInfo.CurrentCulture = originalCulture; }
-Console.WriteLine($"Passed {checks} checks including regional monitor coordinate formatting.");
+var desktopInput = StreamSettings.ScreenInputArguments(true);
+Check(!desktopInput.Contains("-offset_x") && !desktopInput.Contains("-offset_y") && !desktopInput.Contains("-video_size") && desktopInput[^1] == "desktop", "Desktop capture must use gdigrab's own DPI context instead of a WinForms crop rectangle");
+Console.WriteLine($"Passed {checks} checks including automatic desktop bounds.");

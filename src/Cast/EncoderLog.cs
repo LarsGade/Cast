@@ -24,5 +24,16 @@ internal sealed class EncoderLog : IDisposable
         }
     }
     public string Details { get { lock (sync) return string.Join(Environment.NewLine, recent); } }
-    public void Dispose() { lock (sync) writer.Dispose(); }
+    public void Dispose()
+    {
+        lock (sync)
+        {
+            if (size >= 128 * 1024)
+            {
+                writer.WriteLine("... middle of log omitted; last messages follow ...");
+                foreach (string line in recent) writer.WriteLine(line);
+            }
+            writer.Dispose();
+        }
+    }
 }

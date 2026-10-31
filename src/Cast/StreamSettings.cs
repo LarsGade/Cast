@@ -10,9 +10,10 @@ internal static class StreamSettings
             "-ar", sampleRate.ToString(CultureInfo.InvariantCulture), "-ac", channels.ToString(CultureInfo.InvariantCulture), "-i", "pipe:0"];
     }
 
-    public static string[] ScreenInputArguments(int left, int top, int width, int height, bool faster) =>
-        ["-thread_queue_size", "32", "-probesize", "32", "-analyzeduration", "0", "-f", "gdigrab", "-framerate", faster ? "30" : "20", "-draw_mouse", "1",
-            "-offset_x", left.ToString(CultureInfo.InvariantCulture), "-offset_y", top.ToString(CultureInfo.InvariantCulture), "-video_size", $"{width}x{height}", "-i", "desktop"];
+    // Let gdigrab determine the physical desktop in its own DPI context.
+    // WinForms' virtual bounds can differ on mixed-DPI/multi-monitor systems.
+    public static string[] ScreenInputArguments(bool faster) =>
+        ["-thread_queue_size", "32", "-f", "gdigrab", "-framerate", faster ? "30" : "20", "-draw_mouse", "1", "-i", "desktop"];
 
     public static string[] OutputArguments(bool includeAudio, bool faster)
     {

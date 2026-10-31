@@ -41,7 +41,6 @@ internal sealed class ScreenStream : IAsyncDisposable
         string localAddress = ((IPEndPoint)route.LocalEndPoint!).Address.ToString();
         server.Start();
         serving = ServeAsync();
-        var bounds = SystemInformation.VirtualScreen;
         if (includeAudio)
         {
             try { audio = new LoopbackAudio(); }
@@ -50,7 +49,7 @@ internal sealed class ScreenStream : IAsyncDisposable
         }
         var start = new ProcessStartInfo(binary) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardInput = includeAudio, WorkingDirectory = directory };
         var args = new List<string> { "-hide_banner", "-loglevel", "warning" };
-        args.AddRange(StreamSettings.ScreenInputArguments(bounds.Left, bounds.Top, bounds.Width, bounds.Height, faster));
+        args.AddRange(StreamSettings.ScreenInputArguments(faster));
         if (audio is not null)
             args.AddRange(StreamSettings.AudioInputArguments(audio.Format, audio.SampleRate, audio.Channels));
         args.AddRange(StreamSettings.OutputArguments(includeAudio, faster));

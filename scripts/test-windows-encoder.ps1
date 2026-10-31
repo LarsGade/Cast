@@ -19,9 +19,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Encoder configuration generation failed.' }
 python scripts/test-encoder.py tools/audio-test.json
 if ($LASTEXITCODE -ne 0) { throw 'Windows audio/video encoder test failed.' }
 # Exercise gdigrab independently of sound or a physical Chromecast.
-Add-Type -AssemblyName System.Windows.Forms
-$bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
-dotnet run --project tests/Cast.ProtocolTests -c Release -- --screen-config-only tools/screen-test.json $bounds.Left $bounds.Top $bounds.Width $bounds.Height
+dotnet run --project tests/Cast.ProtocolTests -c Release -- --screen-config-only tools/screen-test.json
 if ($LASTEXITCODE -ne 0) { throw 'Screen configuration generation failed.' }
 $inputOptions = Get-Content tools/screen-test.json -Raw | ConvertFrom-Json
 & ffmpeg -hide_banner -loglevel warning @inputOptions -t 1 -f null NUL
