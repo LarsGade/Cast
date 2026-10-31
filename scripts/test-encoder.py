@@ -7,7 +7,8 @@ import subprocess
 import sys
 import tempfile
 
-options = json.loads(pathlib.Path(sys.argv[1]).read_text())
+config = json.loads(pathlib.Path(sys.argv[1]).read_text())
+options = config['output']
 with tempfile.TemporaryDirectory(prefix='cast-encoder-test-') as temp:
     root = pathlib.Path(temp)
     # Half a second of silence, a tone, then silence. No microphone or desktop.
@@ -18,7 +19,7 @@ with tempfile.TemporaryDirectory(prefix='cast-encoder-test-') as temp:
     if sys.byteorder != 'little':
         pcm.byteswap()
     command = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
-               'testsrc2=size=640x360:rate=30:duration=4', '-f', 'f32le', '-ar', '48000', '-ac', '2', '-i', 'pipe:0', *options]
+               'testsrc2=size=640x360:rate=30:duration=4', *config['audioInput'], *options]
     subprocess.run(command, input=pcm.tobytes(), cwd=root, check=True, timeout=60)
     playlist = root / 'live.m3u8'
     assert playlist.exists() and '#EXT-X-TARGETDURATION:1' in playlist.read_text(), 'A valid one-second HLS playlist is required'

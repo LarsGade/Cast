@@ -1,5 +1,17 @@
 using System.Text;
 using Cast;
+object EncoderConfig() => new { output = StreamSettings.OutputArguments(true, true), audioInput = StreamSettings.AudioInputArguments("f32le", 48000, 2) };
+if (args.Length == 6 && args[0] == "--screen-config-only")
+{
+    var options = StreamSettings.ScreenInputArguments(int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), int.Parse(args[5]), true);
+    File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(options));
+    return;
+}
+if (args.Length == 2 && args[0] == "--encoder-config-only")
+{
+    File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(EncoderConfig()));
+    return;
+}
 int checks = 0;
 void Check(bool pass, string message) { if (!pass) throw new Exception(message); checks++; }
 string payload = "{\"type\":\"PING\",\"name\":\"Stue æøå\"}";
@@ -88,7 +100,7 @@ string prepared = StreamSettings.PreparePlaylist(playlist, true);
 Check(prepared.Contains("#EXT-X-START:TIME-OFFSET=-1.5,PRECISE=YES"), "Faster playlist must request playback near the live edge");
 Check(StreamSettings.PreparePlaylist(prepared, true) == prepared && StreamSettings.PreparePlaylist(playlist, false) == playlist, "Playlist hint must be idempotent and optional");
 if (args.Length == 2 && args[0] == "--write-encoder-options")
-    File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(audioOptions));
+    File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(EncoderConfig()));
 Console.WriteLine($"Passed {checks} checks including audio mapping and live playlist settings.");
 
 using var silence = new MemoryStream();
@@ -98,3 +110,18 @@ catch (OperationCanceledException) when (stopAudio.IsCancellationRequested) { }
 Check(silence.Length >= 3840 && silence.ToArray().All(b => b == 0), "Idle playback device must keep supplying silence so video can start");
 Check(silence.Length % (480 * 8) == 0, "Audio writes must preserve complete sample frames");
 Console.WriteLine($"Passed {checks} checks including clocked silence and cancellation.");
+
+string logDirectory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "cast-log-test-" + Guid.NewGuid().ToString("N"));
+try
+{
+    string logPath;
+    using (var log = new EncoderLog(logDirectory))
+    {
+        logPath = log.Path;
+        log.Write("Actual input failure"); log.Write("Error opening input files: Invalid argument");
+        Check(log.Details.Contains("Actual input failure"), "Root cause must survive the final generic FFmpeg error");
+    }
+    Check(File.ReadAllText(logPath).Contains("Actual input failure"), "Diagnostic log must survive process cleanup");
+}
+finally { Directory.Delete(logDirectory, true); }
+Console.WriteLine($"Passed {checks} checks including retained encoder diagnostics.");

@@ -17,13 +17,16 @@ internal sealed class ScreenStream : IAsyncDisposable
     private bool faster;
     private Task? serving;
     private Task? logging;
-    private string lastError = "";
+    private EncoderLog? diagnostic;
+    public string? DiagnosticLogPath => diagnostic?.Path;
     public event Action<string>? Issue;
 
     public async Task<string> StartAsync(string receiverAddress, CancellationToken token, bool includeAudio = true, bool faster = true)
     {
         this.faster = faster;
         Directory.CreateDirectory(directory);
+        diagnostic = new EncoderLog(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Cast", "Logs"));
+        diagnostic.Write($"Cast {Application.ProductVersion} — {DateTimeOffset.Now:O}");
         string binary = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe");
         if (!File.Exists(binary))
         {
@@ -46,20 +49,30 @@ internal sealed class ScreenStream : IAsyncDisposable
             audio.Issue += message => Issue?.Invoke(message);
         }
         var start = new ProcessStartInfo(binary) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardInput = includeAudio, WorkingDirectory = directory };
-        var args = new List<string> { "-hide_banner", "-loglevel", "warning", "-thread_queue_size", "32", "-probesize", "32", "-analyzeduration", "0", "-f", "gdigrab", "-framerate", faster ? "30" : "20", "-draw_mouse", "1",
-            "-offset_x", bounds.Left.ToString(), "-offset_y", bounds.Top.ToString(), "-video_size", $"{bounds.Width}x{bounds.Height}", "-i", "desktop" };
+        var args = new List<string> { "-hide_banner", "-loglevel", "warning" };
+        args.AddRange(StreamSettings.ScreenInputArguments(bounds.Left, bounds.Top, bounds.Width, bounds.Height, faster));
         if (audio is not null)
-            args.AddRange(["-thread_queue_size", "64", "-probesize", "32", "-analyzeduration", "0", "-f", audio.Format, "-ar", audio.SampleRate.ToString(System.Globalization.CultureInfo.InvariantCulture), "-ac", audio.Channels.ToString(System.Globalization.CultureInfo.InvariantCulture), "-i", "pipe:0"]);
+            args.AddRange(StreamSettings.AudioInputArguments(audio.Format, audio.SampleRate, audio.Channels));
         args.AddRange(StreamSettings.OutputArguments(includeAudio, faster));
         foreach (string argument in args) start.ArgumentList.Add(argument);
+        diagnostic.Write("FFmpeg arguments: " + string.Join(" ", args));
         encoder = Process.Start(start) ?? throw new IOException("Skærmoptagelsen kunne ikke startes.");
         audio?.Start(encoder.StandardInput.BaseStream);
-        logging = Task.Run(async () => { while (await encoder.StandardError.ReadLineAsync() is { } line) lastError = line; if (!lifetime.IsCancellationRequested) Issue?.Invoke("Skærmoptagelsen stoppede: " + lastError); });
+        logging = Task.Run(async () =>
+        {
+            while (await encoder.StandardError.ReadLineAsync() is { } line) diagnostic.Write(line);
+            if (!lifetime.IsCancellationRequested)
+                Issue?.Invoke("Videokoderen stoppede. Klik Vis fejllog for den konkrete årsag.");
+        });
         using var wait = CancellationTokenSource.CreateLinkedTokenSource(token);
         wait.CancelAfter(TimeSpan.FromSeconds(20));
         while (!File.Exists(Path.Combine(directory, faster ? "part000001.ts" : "part000002.ts")))
         {
-            if (encoder.HasExited) throw new IOException("Videokoderen stoppede: " + lastError);
+            if (encoder.HasExited)
+            {
+                await logging;
+                throw new IOException("Videokoderen kunne ikke starte. Klik Vis fejllog, og kopiér loggen.");
+            }
             await Task.Delay(200, wait.Token);
         }
         return $"http://{localAddress}:{((IPEndPoint)server.LocalEndpoint).Port}/{secret}/live.m3u8";
@@ -124,6 +137,7 @@ internal sealed class ScreenStream : IAsyncDisposable
         }
         if (audio is not null) { await audio.DisposeAsync(); audio = null; }
         if (serving is not null) await serving;
+        diagnostic?.Dispose();
         try { Directory.Delete(directory, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 }

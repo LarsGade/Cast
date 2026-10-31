@@ -8,7 +8,34 @@ on:
 permissions:
   contents: read
 jobs:
+  windows-encoder-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Test bundled FFmpeg on Windows
+        shell: pwsh
+        run: |
+          ./scripts/test-windows-encoder.ps1 *>&1 | Tee-Object windows-encoder-test.log
+      - name: Expose encoder failure details
+        if: failure()
+        shell: pwsh
+        run: |
+          if (Test-Path windows-encoder-test.log) {
+            Add-Content $env:GITHUB_STEP_SUMMARY '### Windows encoder failure'
+            Add-Content $env:GITHUB_STEP_SUMMARY '```text'
+            Get-Content windows-encoder-test.log -Tail 100 | Add-Content $env:GITHUB_STEP_SUMMARY
+            Add-Content $env:GITHUB_STEP_SUMMARY '```'
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows-encoder-diagnostics
+          path: windows-encoder-test.log
   build:
+    needs: windows-encoder-test
     runs-on: ubuntu-latest
     permissions:
       contents: write

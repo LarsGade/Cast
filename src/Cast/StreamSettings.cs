@@ -3,6 +3,17 @@ using System.Globalization;
 namespace Cast;
 internal static class StreamSettings
 {
+    public static string[] AudioInputArguments(string format, int sampleRate, int channels)
+    {
+        if (sampleRate <= 0 || channels <= 0) throw new ArgumentOutOfRangeException(nameof(sampleRate), "Lydformatet mangler gyldig samplerate/kanalantal.");
+        return ["-thread_queue_size", "64", "-probesize", "32", "-analyzeduration", "0", "-f", format,
+            "-ar", sampleRate.ToString(CultureInfo.InvariantCulture), "-ac", channels.ToString(CultureInfo.InvariantCulture), "-i", "pipe:0"];
+    }
+
+    public static string[] ScreenInputArguments(int left, int top, int width, int height, bool faster) =>
+        ["-thread_queue_size", "32", "-probesize", "32", "-analyzeduration", "0", "-f", "gdigrab", "-framerate", faster ? "30" : "20", "-draw_mouse", "1",
+            "-offset_x", left.ToString(CultureInfo.InvariantCulture), "-offset_y", top.ToString(CultureInfo.InvariantCulture), "-video_size", $"{width}x{height}", "-i", "desktop"];
+
     public static string[] OutputArguments(bool includeAudio, bool faster)
     {
         int fps = faster ? 30 : 20;
